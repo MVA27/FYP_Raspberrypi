@@ -3,38 +3,21 @@
 import bme680
 import time
 
-print("""read-all.py - Displays temperature, pressure, humidity, and gas.
-
-Press Ctrl+C to exit!
-
-""")
-
 try:
     sensor = bme680.BME680(bme680.I2C_ADDR_PRIMARY)
 except (RuntimeError, IOError):
     sensor = bme680.BME680(bme680.I2C_ADDR_SECONDARY)
 
-# These calibration data can safely be commented
-# out, if desired.
-
-print('Calibration data:')
-for name in dir(sensor.calibration_data):
-
-    if not name.startswith('_'):
-        value = getattr(sensor.calibration_data, name)
-
-        if isinstance(value, int):
-            print('{}: {}'.format(name, value))
 
 # These oversampling settings can be tweaked to
 # change the balance between accuracy and noise in
 # the data.
-
 sensor.set_humidity_oversample(bme680.OS_2X)
 sensor.set_pressure_oversample(bme680.OS_4X)
 sensor.set_temperature_oversample(bme680.OS_8X)
 sensor.set_filter(bme680.FILTER_SIZE_3)
-sensor.set_gas_status(bme680.ENABLE_GAS_MEAS)
+sensor.set_gas_status(bme680.ENABLE_GAS_MEAS) #bme680.DISABLE_GAS_MEAS
+
 
 print('\n\nInitial reading:')
 for name in dir(sensor.data):
@@ -43,40 +26,36 @@ for name in dir(sensor.data):
     if not name.startswith('_'):
         print('{}: {}'.format(name, value))
 
-sensor.set_gas_heater_temperature(320)
-sensor.set_gas_heater_duration(150)
-sensor.select_gas_heater_profile(0)
 
-# Up to 10 heater profiles can be configured, each
-# with their own temperature and duration.
-# sensor.set_gas_heater_profile(200, 150, nb_profile=1)
-# sensor.select_gas_heater_profile(1)
+# Heating durations between 1 ms and 4032 ms can be configured.
+# Approximately 20-30 ms are necessary for the heater to reach the intended target temperature.
+sensor.set_gas_heater_profile(temperature=300, duration=150, nb_profile=0)
+sensor.select_gas_heater_profile(0)
 
 
 start_time = time.time()
-curr_time = time.time()
-burn_in_time = 300
+current_time = time.time()
 
-burn_in_data = []
+burn_in_time = 300
+burn_in_data_list = []
 
 
 print('\n\nPolling:')
 try:
     while True:
-
         # Collect gas resistance burn-in values, then use the average
         # of the last 50 values to set the upper limit for calculating
         # gas_baseline.
         print('Collecting gas resistance burn-in data for 5 mins\n')
-        while curr_time - start_time < burn_in_time:
-            curr_time = time.time()
+        while current_time - start_time < burn_in_time:
+            current_time = time.time()
             if sensor.get_sensor_data() and sensor.data.heat_stable:
                 gas = sensor.data.gas_resistance
-                burn_in_data.append(gas)
+                burn_in_data_list.append(gas)
                 print('Gas: {0} Ohms'.format(gas))
                 time.sleep(1)
 
-        gas_baseline = sum(burn_in_data[-50:]) / 50.0
+        gas_baseline = sum(burn_in_data_list[-50:]) / 50.0
 
         # Set the humidity baseline to 40%, an optimal indoor humidity.
         hum_baseline = 40.0
