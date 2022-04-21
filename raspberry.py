@@ -2,6 +2,7 @@
 
 import bme680
 import time
+import bmeutil
 
 try:
     sensor = bme680.BME680(bme680.I2C_ADDR_PRIMARY)
@@ -29,6 +30,7 @@ for name in dir(sensor.data):
 
 # Heating durations between 1 ms and 4032 ms can be configured.
 # Approximately 20-30 ms are necessary for the heater to reach the intended target temperature.
+
 sensor.set_gas_heater_profile(temperature=300, duration=150, nb_profile=0)
 sensor.select_gas_heater_profile(0)
 
@@ -38,36 +40,6 @@ current_time = time.time()
 
 burn_in_time = 60
 burn_in_data_list = []
-
-def get_air_quality_score(sensor):
-    gas = sensor.data.gas_resistance
-    gas_offset = gas_baseline - gas
-
-    hum = sensor.data.humidity
-    hum_offset = hum - hum_baseline
-
-    # Calculate hum_score as the distance from the hum_baseline.
-    if hum_offset > 0:
-        hum_score = (100 - hum_baseline - hum_offset)
-        hum_score /= (100 - hum_baseline)
-        hum_score *= (hum_weighting * 100)
-
-    else:
-        hum_score = (hum_baseline + hum_offset)
-        hum_score /= hum_baseline
-        hum_score *= (hum_weighting * 100)
-
-    # Calculate gas_score as the distance from the gas_baseline.
-    if gas_offset > 0:
-        gas_score = (gas / gas_baseline)
-        gas_score *= (100 - (hum_weighting * 100))
-
-    else:
-        gas_score = 100 - (hum_weighting * 100)
-
-    # Calculate air_quality_score.
-    air_quality_score = hum_score + gas_score
-    return air_quality_score
 
 print('\n\nPolling:')
 try:
@@ -85,21 +57,12 @@ try:
 
     gas_baseline = sum(burn_in_data_list[-50:]) / 50.0
 
-    # Set the humidity baseline to 40%, an optimal indoor humidity.
-    hum_baseline = 40.0
-
-    # This sets the balance between humidity and gas reading in the
-    # calculation of air_quality_score (25:75, humidity:gas)
-    hum_weighting = 0.25
-
-    print('Gas baseline: {0} Ohms, humidity baseline: {1:.2f} %RH\n'.format(gas_baseline,hum_baseline))
-
     while True:
         if sensor.get_sensor_data():
             output = '{0:.2f} C,{1:.2f} hPa,{2:.2f} %RH'.format(sensor.data.temperature,sensor.data.pressure,sensor.data.humidity)
 
             if sensor.data.heat_stable:
-                air_quality_score = get_air_quality_score(sensor)
+                air_quality_score = bmeutil.get_air_quality_score(sensor,gas_baseline)
                 print('{0},air quality: {1:.2f}'.format(output,air_quality_score))
 
             else:
