@@ -3,6 +3,7 @@
 import bme680
 import time
 import bmeutil
+import requests as req
 
 try:
     sensor = bme680.BME680(bme680.I2C_ADDR_PRIMARY)
@@ -64,6 +65,8 @@ try:
             if sensor.data.heat_stable:
                 air_quality_score = bmeutil.get_air_quality_score(sensor,gas_baseline)
                 print('{0},air quality: {1:.2f}'.format(output,air_quality_score))
+                link = 'https://project4y.000webhostapp.com/catch.php?t={0:.2f}&p={1:.2f}&h={2:.2f}&a={3:.2f}'.format(sensor.data.temperature,sensor.data.pressure,sensor.data.humidity,air_quality_score)
+                req.get(link)
 
             else:
                 print(output)
