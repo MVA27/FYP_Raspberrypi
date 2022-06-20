@@ -66,12 +66,23 @@ try:
                 air_quality_score = bmeutil.get_air_quality_score(sensor,gas_baseline)
                 print('{0},air quality: {1:.2f}'.format(output,air_quality_score))
                 link = 'https://project4y.000webhostapp.com/catch.php?t={0:.2f}&p={1:.2f}&h={2:.2f}&a={3:.2f}'.format(sensor.data.temperature,sensor.data.pressure,sensor.data.humidity,air_quality_score)
-                req.get(link)
+                response = req.get(link)
+                json = response.json()
+                flags = Flags(**json)
 
             else:
                 print(output)
 
-        time.sleep(1)
+        time.sleep(flags.sleep)
+        
+        if flags.terminate == 1:
+            print("Terminated by admin...")
+            break
 
 except KeyboardInterrupt:
     print("Exception : key pressed")
+
+class Flags(output):
+    def __init__(self, sleep, terminate):
+        self.sleep = sleep
+        self.terminate = terminate
