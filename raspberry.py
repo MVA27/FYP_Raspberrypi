@@ -58,30 +58,41 @@ try:
 
     gas_baseline = sum(burn_in_data_list[-50:]) / 50.0
 
+    #Send a blank request (i.e request without data) to receive Flag values
+    link = 'https://project4y.000webhostapp.com/Raspberrypi/catch.php'
+    response = req.get(link)
+    json = response.json()
+    flags = Flags(**json)
+
+    if flags.terminate == 1:
+        print("WARNING: Administrator has stopped the execution. Ask the Administrator to start the execution..!")
+
+    #Infinite Loop to fetch the data
     while True:
-        if sensor.get_sensor_data():
-            output = '{0:.2f} C,{1:.2f} hPa,{2:.2f} %RH'.format(sensor.data.temperature,sensor.data.pressure,sensor.data.humidity)
 
-            if sensor.data.heat_stable:
-                air_quality_score = bmeutil.get_air_quality_score(sensor,gas_baseline)
-                print('{0},air quality: {1:.2f}'.format(output,air_quality_score))
-                link = 'https://project4y.000webhostapp.com/catch.php?t={0:.2f}&p={1:.2f}&h={2:.2f}&a={3:.2f}'.format(sensor.data.temperature,sensor.data.pressure,sensor.data.humidity,air_quality_score)
-                response = req.get(link)
-                json = response.json()
-                flags = Flags(**json)
+        if flags.terminate == 0: #Continue the execution
+            if sensor.get_sensor_data():
+                output = '{0:.2f} C,{1:.2f} hPa,{2:.2f} %RH'.format(sensor.data.temperature,sensor.data.pressure,sensor.data.humidity)
 
-            else:
-                print(output)
+                if sensor.data.heat_stable:
+                    air_quality_score = bmeutil.get_air_quality_score(sensor,gas_baseline)
+                    print('{0},air quality: {1:.2f}'.format(output,air_quality_score))
+                    link = 'https://project4y.000webhostapp.com/Raspberrypi/catch.php?t={0:.2f}&p={1:.2f}&h={2:.2f}&a={3:.2f}'.format(sensor.data.temperature,sensor.data.pressure,sensor.data.humidity,air_quality_score)
+                    response = req.get(link)
+                    json = response.json()
+                    flags = Flags(**json)
 
-        time.sleep(flags.sleep)
-        
-        if flags.terminate == 1:
-            print("Terminated by admin...")
-            break
+                else:
+                    print(output)
+                    
+            #TODO : Increase the time and set minimum time
+            time.sleep(flags.sleep)
 
 except KeyboardInterrupt:
     print("Exception : key pressed")
 
+
+# class and functions decleration
 class Flags(output):
     def __init__(self, sleep, terminate):
         self.sleep = sleep
